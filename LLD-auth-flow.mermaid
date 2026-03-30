@@ -1,0 +1,41 @@
+%% ─────────────────────────────────────────────
+%% LLD DIAGRAM 2 — Auth Flow (Register + Login)
+%% ─────────────────────────────────────────────
+
+sequenceDiagram
+    actor Browser
+    participant Controller as auth.controller
+    participant Service as auth.service
+    participant Repo as auth.repository
+    participant DB as PostgreSQL
+    participant JWT as jwt.ts
+
+    Note over Browser,JWT: REGISTER
+    Browser->>Controller: POST /api/auth/register
+    Controller->>Controller: validate body with registerSchema from @core
+    Controller->>Service: register(dto)
+    Service->>Repo: findTenantBySlug(slug)
+    Repo->>DB: SELECT tenants WHERE slug = ?
+    DB-->>Repo: null
+    Repo-->>Service: null - slug is available
+    Service->>Repo: createTenant(name, slug)
+    Service->>Service: bcrypt.hash(password)
+    Service->>Repo: createUser(tenantId, email, hash)
+    Service->>JWT: sign(userId, tenantId, email, role)
+    JWT-->>Service: accessToken
+    Service-->>Controller: AuthResponse
+    Controller-->>Browser: 200 data accessToken and user
+
+    Note over Browser,JWT: LOGIN
+    Browser->>Controller: POST /api/auth/login?tenant=slug
+    Controller->>Controller: validate body with loginSchema from @core
+    Controller->>Service: login(dto, tenantSlug)
+    Service->>Repo: findTenantBySlug(slug)
+    Repo-->>Service: tenant or null, throws 401 if null
+    Service->>Repo: findUserByEmail(email, tenantId)
+    Repo-->>Service: user or null, throws 401 if null
+    Service->>Service: bcrypt.compare, throws 401 if mismatch
+    Service->>JWT: sign(userId, tenantId, email, role)
+    JWT-->>Service: accessToken
+    Service-->>Controller: AuthResponse
+    Controller-->>Browser: 200 data accessToken and user

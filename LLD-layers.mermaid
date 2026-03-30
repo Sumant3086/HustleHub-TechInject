@@ -1,0 +1,25 @@
+graph TB
+    subgraph FEATURE["Feature Module - e.g. tasks/"]
+        direction TB
+        CTR["controller.ts\nparse request\nvalidate with Zod\nformat response\nNO business logic"]
+        SVC["service.ts\nbusiness rules\nownership checks\nmaps DB row to DTO\nNO HTTP knowledge"]
+        REPO["repository.ts\nDB queries only\nreads tenantId from context\nWHERE tenant_id = ctx.tenantId\nNO logic"]
+        DB2["PostgreSQL"]
+
+        CTR -->|"clean DTO"| SVC
+        SVC -->|"query params"| REPO
+        REPO -->|"SQL"| DB2
+        DB2 -->|"raw row"| REPO
+        REPO -->|"typed entity"| SVC
+        SVC -->|"TaskResponse"| CTR
+    end
+
+    MW2["auth.middleware\nInjects userId and tenantId\nvia AsyncLocalStorage"] -->|"context set before handler"| CTR
+
+    classDef middlewareStyle fill:#fef9c3,stroke:#eab308,color:#000
+    classDef layerStyle fill:#f0fdf4,stroke:#22c55e,color:#000
+    classDef dbStyle fill:#fce7f3,stroke:#ec4899,color:#000
+
+    class MW2 middlewareStyle
+    class CTR,SVC,REPO layerStyle
+    class DB2 dbStyle

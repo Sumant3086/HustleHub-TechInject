@@ -1,0 +1,36 @@
+graph LR
+    subgraph CORE["packages/core"]
+        direction TB
+        T["types\nUser, Task, Tenant\nTaskStatus, TaskPriority"]
+        S["Zod Schemas\nregisterSchema, loginSchema\ncreateTaskSchema, updateTaskSchema\nmoveTaskSchema"]
+        C["Contracts\nAuthResponse, TaskResponse\nApiResponse(T)"]
+        T --> S
+        T --> C
+    end
+
+    subgraph API["apps/api"]
+        AR["auth.repository\nauth.service"]
+        TR["task.repository\ntask.service\ntask.controller"]
+        MW["auth.middleware\ntenant context"]
+    end
+
+    subgraph WEB["apps/web"]
+        AUTH_UI["LoginForm\nRegisterForm\nauth.store"]
+        BOARD_UI["TaskBoard\nTaskColumn\nTaskCard\ntasks.store"]
+        CLIENT["api/client.ts\ntyped fetch layer"]
+    end
+
+    CORE -->|"User, Tenant\nRegisterDto, LoginDto\nAuthResponse"| AR
+    CORE -->|"Task, TaskStatus\nCreateTaskDto, TaskResponse\nApiResponse(T)"| TR
+    CORE -->|"Zod schemas\nfor validation"| MW
+    CORE -->|"AuthResponse\nRegisterDto, LoginDto"| AUTH_UI
+    CORE -->|"Task, TaskResponse\nUpdateTaskDto, MoveTaskDto"| BOARD_UI
+    CORE -->|"ApiResponse(T)"| CLIENT
+
+    classDef coreStyle fill:#fef9c3,stroke:#eab308,color:#000
+    classDef apiStyle fill:#dcfce7,stroke:#16a34a,color:#000
+    classDef webStyle fill:#dbeafe,stroke:#3b82f6,color:#000
+
+    class T,S,C coreStyle
+    class AR,TR,MW apiStyle
+    class AUTH_UI,BOARD_UI,CLIENT webStyle

@@ -1,0 +1,56 @@
+graph TB
+    subgraph CLIENT["Browser"]
+        UI["SvelteKit / Next.js\nFrontend App"]
+    end
+
+    subgraph CORE["packages/core - Shared"]
+        TYPES["TypeScript Types\nUser, Task, Tenant"]
+        SCHEMAS["Zod Schemas\nRegisterDto, LoginDto\nCreateTaskDto, UpdateTaskDto"]
+        CONTRACTS["API Contracts\nApiResponse(T), TaskResponse\nAuthResponse"]
+    end
+
+    subgraph API["apps/api - Bun or Node.js"]
+        direction TB
+        MW_AUTH["auth.middleware\nJWT Verify, Inject Context"]
+        MW_TENANT["tenant.middleware\nAttach tenantId to every request"]
+
+        subgraph AUTH_MOD["Auth Module"]
+            AC["auth.controller"]
+            AS["auth.service"]
+            AR["auth.repository"]
+        end
+
+        subgraph TASK_MOD["Task Module"]
+            TC["task.controller"]
+            TS["task.service"]
+            TR["task.repository\nalways scoped to tenantId"]
+        end
+    end
+
+    subgraph DB["PostgreSQL"]
+        T_TEN["tenants"]
+        T_USR["users\ntenant_id FK"]
+        T_TSK["tasks\ntenant_id FK"]
+    end
+
+    UI -->|"typed fetch via ApiResponse(T)"| MW_AUTH
+    MW_AUTH --> MW_TENANT
+    MW_TENANT --> AC
+    MW_TENANT --> TC
+
+    AC --> AS --> AR
+    TC --> TS --> TR
+
+    AR --> T_TEN
+    AR --> T_USR
+    TR --> T_TSK
+
+    CORE -.->|"shared types and schemas"| UI
+    CORE -.->|"shared types and schemas"| MW_AUTH
+
+    style CLIENT fill:#dbeafe,stroke:#3b82f6
+    style CORE fill:#fef9c3,stroke:#eab308
+    style API fill:#dcfce7,stroke:#22c55e
+    style DB fill:#fce7f3,stroke:#ec4899
+    style AUTH_MOD fill:#bbf7d0,stroke:#16a34a
+    style TASK_MOD fill:#bbf7d0,stroke:#16a34a

@@ -1,0 +1,49 @@
+%% ─────────────────────────────────────────────
+%% LLD DIAGRAM 3 — Task Move (Drag & Drop + Optimistic UI)
+%% ─────────────────────────────────────────────
+
+sequenceDiagram
+    actor User
+    participant Board as TaskBoard UI
+    participant Store as tasks store
+    participant Client as api client
+    participant MW as auth.middleware
+    participant Ctrl as task.controller
+    participant Svc as task.service
+    participant Repo as task.repository
+    participant DB as PostgreSQL
+
+    User->>Board: drop card into new column
+    Board->>Store: moveTask(id, newStatus, newPosition)
+
+    Note over Store: Optimistic update - instant UI change
+    Store->>Store: update tasks array immediately
+
+    Store->>Client: PATCH /api/tasks/:id/move with status and position
+    Client->>MW: request with Authorization header
+    MW->>MW: verify JWT, extract userId and tenantId
+    MW->>MW: AsyncLocalStorage.run with tenantId
+    MW->>Ctrl: forward request
+
+    Ctrl->>Ctrl: validate with moveTaskSchema from @core
+    Ctrl->>Svc: move(id, dto)
+    Svc->>Repo: findById(id)
+    Repo->>Repo: getContext() reads tenantId from AsyncLocalStorage
+    Repo->>DB: SELECT tasks WHERE id = ? AND tenant_id = ?
+    DB-->>Repo: task or null
+
+    alt Task not found or belongs to different tenant
+        Repo-->>Svc: null
+        Svc-->>Ctrl: NotFoundError
+        Ctrl-->>Client: 404
+        Client-->>Store: error
+        Note over Store: UI retains optimistic state, error logged
+    else Task found and tenant matches
+        Repo->>DB: UPDATE tasks SET status, position WHERE id = ? AND tenant_id = ?
+        DB-->>Repo: updated task
+        Repo-->>Svc: TaskResponse
+        Svc-->>Ctrl: TaskResponse
+        Ctrl-->>Client: 200 with TaskResponse
+        Client-->>Store: merge server response
+        Note over Store: No visual change, already updated
+    end
