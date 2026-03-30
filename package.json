@@ -1,0 +1,28 @@
+{
+  "name": "multi-tenant-taskboard",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "npm@10.5.0",
+  "workspaces": [
+    "preferred-stack/apps/*",
+    "preferred-stack/packages/*",
+    "alternative-stack/apps/*",
+    "alternative-stack/packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev --filter=\"./preferred-stack/**\"",
+    "dev:preferred": "turbo run dev --filter=\"./preferred-stack/**\"",
+    "dev:alternative": "turbo run dev --filter=\"./alternative-stack/**\"",
+    "build:preferred": "turbo run build --filter=\"./preferred-stack/**\"",
+    "build:alternative": "turbo run build --filter=\"./alternative-stack/**\"",
+    "build": "turbo run build --filter=\"./preferred-stack/**\"",
+    "lint": "turbo run lint",
+    "type-check": "turbo run type-check",
+    "typecheck": "turbo run type-check",
+    "clean": "npx kill-port 3000 3001 3002 4000 4001 || true"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0",
+    "typescript": "^5.3.3"
+  }
+}
