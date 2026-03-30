@@ -1,0 +1,28 @@
+{
+    "name": "@preferred/api",
+    "version": "1.0.0",
+    "type": "module",
+    "scripts": {
+        "dev": "bun run --hot src/index.ts",
+        "build": "bun build src/index.ts --outdir dist --target bun",
+        "start": "bun run dist/index.js",
+        "db:generate": "drizzle-kit generate:pg",
+        "db:migrate": "bun run src/db/migrate.ts",
+        "db:push": "drizzle-kit push:pg",
+        "type-check": "tsc --noEmit"
+    },
+    "dependencies": {
+        "@libsql/client": "^0.17.2",
+        "@preferred/core": "*",
+        "drizzle-orm": "^0.30.10",
+        "jose": "^5.2.0",
+        "pg": "^8.20.0",
+        "postgres": "^3.4.3",
+        "zod": "^3.22.4"
+    },
+    "devDependencies": {
+        "@types/bun": "^1.0.0",
+        "drizzle-kit": "^0.20.17",
+        "typescript": "^5.3.3"
+    }
+}
