@@ -1,114 +1,132 @@
-# Multi-Tenant Task Board
+# HustleHub — Multi-Tenant Task Board
 
-A production-grade multi-tenant task management system built as a Turborepo monorepo. Implements the same architecture in two stacks — preferred (SvelteKit + Bun + Drizzle) and alternative (Next.js + Express + Prisma) — sharing the same PostgreSQL database.
+A production-grade multi-tenant task management system built as a Turborepo monorepo. Two complete implementations — preferred (SvelteKit + Bun + Drizzle) and alternative (Next.js + Express + Prisma) — sharing the same PostgreSQL database.
+
+## Live Demo
+
+| Stack | URL |
+|-------|-----|
+| Preferred Web (SvelteKit) | https://hustlehub-6pm6.onrender.com |
+| Preferred API (Bun) | https://hustlehub-preferred-api.onrender.com |
+
+> Free tier — first request after idle may take ~30 seconds to wake up.
+
+## What's Built
+
+- Multi-tenant registration — each company gets its own isolated workspace
+- JWT authentication with protected routes
+- Kanban board with drag-and-drop between columns
+- Optimistic UI — tasks move instantly, API syncs in background
+- Task detail panel with inline editing
+- Full CRUD for tasks with priority levels
+- Tenant isolation enforced at the API middleware layer via AsyncLocalStorage
 
 ## Repository Structure
 
 ```
 ├── docs/
-│   ├── HLD.md                  # High-Level Design
-│   └── LLD.md                  # Low-Level Design
-├── DECISIONS.md                # Architectural decisions & LLM disclosure
+│   ├── HLD.md              — High-Level Design
+│   └── LLD.md              — Low-Level Design
+├── DECISIONS.md            — Architectural decisions and LLM disclosure
+├── .env.example            — Environment variable documentation
 ├── preferred-stack/
 │   ├── apps/
-│   │   ├── api/                # Bun + Bun.serve backend (port 3001)
-│   │   └── web/                # SvelteKit frontend (port 5173)
+│   │   ├── api/            — Bun + Bun.serve backend (port 3001)
+│   │   └── web/            — SvelteKit frontend (port 5173)
 │   └── packages/
-│       └── core/               # Shared types, Zod schemas, API contracts
+│       └── core/           — Shared types, Zod schemas, API contracts
 └── alternative-stack/
     ├── apps/
-    │   ├── api/                # Node.js + Express backend (port 4001)
-    │   └── web/                # Next.js frontend (port 4000)
+    │   ├── api/            — Node.js + Express backend (port 4001)
+    │   └── web/            — Next.js frontend (port 4000)
     └── packages/
-        └── core/               # Shared types, Zod schemas, API contracts
+        └── core/           — Shared types, Zod schemas, API contracts
 ```
 
-## Prerequisites
+## Running Locally
 
-- **Bun** v1.0+ — https://bun.sh (for preferred stack)
-- **Node.js** v18+ (for alternative stack and Turborepo)
-- **PostgreSQL** database (see Environment Variables below)
+### Prerequisites
+
+- [Bun](https://bun.sh) v1.0+ for the preferred stack
+- Node.js v18+ for the alternative stack
+- A PostgreSQL database (or use the same Render DB — see `.env.example`)
+
+### Setup
+
+```bash
+# 1. Clone the repo
+git clone https://github.com/Sumant3086/HustleHub.git
+cd HustleHub
+
+# 2. Copy env files
+cp .env.example preferred-stack/apps/api/.env
+cp .env.example alternative-stack/apps/api/.env
+
+# 3. Fill in your DATABASE_URL and JWT_SECRET in both .env files
+```
+
+### Preferred Stack (SvelteKit + Bun)
+
+```bash
+# Terminal 1 — API on http://localhost:3001
+cd preferred-stack/apps/api
+bun install
+bun run db:push
+bun run dev
+
+# Terminal 2 — Web on http://localhost:5173
+cd preferred-stack/apps/web
+bun install
+bun run dev
+```
+
+### Alternative Stack (Next.js + Express)
+
+```bash
+# Terminal 1 — API on http://localhost:4001
+cd alternative-stack/apps/api
+npm install
+npm run dev
+
+# Terminal 2 — Web on http://localhost:4000
+cd alternative-stack/apps/web
+npm install
+npm run dev
+```
 
 ## Environment Variables
 
-Copy `.env.example` and fill in your values:
-
-```bash
-cp .env.example preferred-stack/apps/api/.env
-cp .env.example alternative-stack/apps/api/.env
-```
-
-Required variables:
-
 ```env
+# PostgreSQL connection string (both stacks share the same database)
 DATABASE_URL=postgresql://<user>:<password>@<host>:<port>/<db>?sslmode=require
-JWT_SECRET=your-secret-key-min-32-chars
-PORT=3001   # 4001 for alternative stack
+
+# JWT signing secret — min 32 characters
+JWT_SECRET=your-super-secret-jwt-key-change-in-production
+
+# API port — 3001 for preferred, 4001 for alternative
+PORT=3001
 ```
 
-> Both stacks point to the **same database**. Run migrations once (see below).
+## Architecture Highlights
 
-## Database Setup
+### AsyncLocalStorage for Multi-Tenancy
 
-```bash
-# Run from preferred-stack/apps/api
-cd preferred-stack/apps/api
-bun run db:push
-```
+The preferred stack uses Node's `AsyncLocalStorage` to propagate tenant context through the entire call stack. The middleware injects `tenantId` once — every repository method reads it automatically. It's impossible to accidentally query another tenant's data.
 
-This applies the schema to your PostgreSQL database. No separate migration needed for the alternative stack — it shares the same tables.
+### packages/core as Single Source of Truth
 
-## Running the Preferred Stack
+Both the frontend and backend import types, Zod schemas, and API contract interfaces from `packages/core`. A mismatch between what the API returns and what the UI expects is a compile error, not a runtime bug.
 
-SvelteKit + Bun + Drizzle → http://localhost:5173
+### Optimistic UI with Intent Tracking
 
-```bash
-# Terminal 1 — API
-cd preferred-stack/apps/api
-bun run dev
+The task store applies drag-and-drop moves instantly. A `latestIntent` map tracks the most recent intended status per task — if a slow API response arrives after the user has already dragged again, it's silently ignored. Tasks never revert.
 
-# Terminal 2 — Web
-cd preferred-stack/apps/web
-bun run dev
-```
+### Clean Architecture
 
-## Running the Alternative Stack
+Every feature follows Controller → Service → Repository. Controllers handle HTTP only. Services contain business logic. Repositories handle database queries with automatic tenant scoping.
 
-Next.js + Express + Prisma → http://localhost:4000
+## Documentation
 
-```bash
-# Terminal 1 — API
-cd alternative-stack/apps/api
-npm run dev
-
-# Terminal 2 — Web
-cd alternative-stack/apps/web
-npm run dev
-```
-
-## Features
-
-- **Authentication** — Register with company name/slug, login with email + tenant slug, JWT access tokens, protected routes
-- **Task Board** — Kanban board with To Do / In Progress / Done columns
-- **Drag and Drop** — Move tasks between columns with instant optimistic updates
-- **Multi-Tenancy** — Tenant isolation enforced at the API middleware layer via AsyncLocalStorage (preferred) and Express middleware (alternative). Users from different tenants cannot access each other's data even with a valid JWT.
-- **Full CRUD** — Create, read, update, delete tasks with priority levels
-
-## Type Safety
-
-Both stacks use `packages/core` as the single source of truth for:
-- TypeScript types (`Task`, `User`, `Tenant`, `ApiResponse`)
-- Zod validation schemas (shared between frontend and backend)
-- API contract interfaces (typed request/response shapes)
-
-`strict: true` is enforced in all `tsconfig.json` files.
-
-## Architecture Decisions
-
-See [`DECISIONS.md`](./DECISIONS.md) for:
-- Every significant architectural decision
-- LLM disclosure (what was AI-suggested vs. manually decided)
-- Two examples of LLM errors that were identified and corrected
-- Prompting strategy for complex sub-tasks
-
-See [`docs/HLD.md`](./docs/HLD.md) and [`docs/LLD.md`](./docs/LLD.md) for full design documentation.
+- [High-Level Design](./docs/HLD.md) — system overview, technology choices, trade-offs
+- [Low-Level Design](./docs/LLD.md) — schema, API contracts, module structure, state management
+- [Decisions](./DECISIONS.md) — architectural decisions and LLM disclosure
