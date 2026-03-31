@@ -1,4 +1,4 @@
-import adapter from '@sveltejs/adapter-auto';
+import adapter from '@sveltejs/adapter-node';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
 const config = {
@@ -7,14 +7,8 @@ const config = {
     adapter: adapter()
   },
   onwarn: (warning, handler) => {
-    // Suppress warnings about unused props that SvelteKit provides
-    if (warning.code === 'unused-export-let') {
-      return;
-    }
-    // Suppress a11y warnings for drag-and-drop elements
-    if (warning.code === 'a11y-no-static-element-interactions') {
-      return;
-    }
+    if (warning.code === 'unused-export-let') return;
+    if (warning.code === 'a11y-no-static-element-interactions') return;
     handler(warning);
   }
 };
